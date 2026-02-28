@@ -1,15 +1,14 @@
 (function () {
 	'use strict';
+	let Browser = chrome || browser;
 	let analyser = {
-		domain : 'https://gramthanos.github.io/WebDevAuthn',
+		domain : Browser.runtime.getURL('pages'),
 		createPath : '/credential-creation.html',
 		getPath : '/credential-get.html'
 	}
 
-	// If this is analyser page
-	if (window.location.host === analyser.domain) return;
-
-	let Browser = chrome || browser;
+	// If this is an extension page (Chrome: chrome-extension:, Firefox: moz-extension:)
+	if (window.location.protocol.endsWith('-extension:')) return;
 	let ready = false;
 	let loaded = false;
 	let options = false;

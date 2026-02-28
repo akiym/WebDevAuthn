@@ -89,13 +89,13 @@
 					<div class="col-12"><hr>
 						<h2>Dev Tools Injection</h2>
 						Inject the hijacker by pasting this code into the Dev Tool of your broser on the webpage that features WebAuthn.
-						<pre data-src="js/webauthn-dev.js" style="height: 250px;"></pre>
+						<pre data-src="../webauthn-dev.js" style="height: 250px;"></pre>
 					</div>
 
 					<div class="col-12"><hr>
 						<h2>Load as script</h2>
 						Add the hijacker script into the developement instance of your website.
-						<pre><code class="lang-html">&lt;script src="https://gramthanos.github.io/WebDevAuthn/js/webauthn-dev.js"
+						<pre><code class="lang-html" id="load-as-script-code">&lt;script src="EXTENSION_URL/webauthn-dev.js"
 		data-development="true"
 		data-virtual="true"
 		data-pause-with-alert="false"
@@ -133,5 +133,6 @@
 		<script src="js/popper.min.js"></script>
 		<script src="js/bootstrap.min.js"></script>
 		<script src="js/prism.js"></script>
+		<script src="js/web-injector-init.js"></script>
 	</body>
 </html>

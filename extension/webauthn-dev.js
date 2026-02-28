@@ -9,7 +9,7 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 	let WebDevAuthn = {
 
 		// Dev tools URL
-		devDomain : 'https://gramthanos.github.io/WebDevAuthn',
+		devDomain : '',
 		devCreatePath : '/credential-creation.html',
 		devGetPath : '/credential-get.html',
 
