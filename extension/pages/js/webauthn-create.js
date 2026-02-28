@@ -1061,7 +1061,7 @@ window.authnCreate = {
 				'    return Uint8Array.from(atob(x.replace(/-/g, \'+\').replace(/_/g, \'/\')), c => c.charCodeAt(0));\n' +
 				'};';
 		if (options.publicKey.excludeCredentials) code = this.swapIdentifiedBuffers(code, info, {'Uint8Array':'fb64("{{value}}")'});
-		rawWrapper.innerHTML = code;
+		rawWrapper.textContent = code;
 
 		options = window._.cloneDeep(this.options);
 		dynamicWrapper.innerHTML = '';
@@ -1561,7 +1561,7 @@ window.authnCreate = {
 		credential.response.attestationObject = window.authnTools.auto(credential.response.attestationObject);
 		credential.response.clientDataJSON = window.authnTools.auto(credential.response.clientDataJSON);
 		console.log('[Render Credential Raw]', credential);
-		rawWrapper.innerHTML = '' +
+		rawWrapper.textContent = '' +
 			JSON.stringify(credential, null, 4)
 				.replace(new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'), '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')')
 				.replace(new RegExp('("attestationObject":\\s*)"(' + credential.response.attestationObject + ')"(,?)'), '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.response.attestationObject).length + ')')
@@ -1591,7 +1591,7 @@ window.authnCreate = {
 				.replace(/"clientDataJSON": {/, '"clientDataJSON": { // ' + clientDataJSONEncoded.value + ' // ArrayBuffer(' + clientDataJSONEncoded.length + ')')
 				.replace(/"flags": "([01]+)"/, '"flags": 0x$1');
 		code = this.swapIdentifiedBuffers(code, info);
-		decodedWrapper.innerHTML = code;
+		decodedWrapper.textContent = code;
 
 
 		// Show attestation format info
@@ -1607,7 +1607,7 @@ window.authnCreate = {
 			' */' + '\n' + '\n' +
 			JSON.stringify(attestationFormat, null, 4);
 		code = this.swapIdentifiedBuffers(code, info);
-		attestationWrapper.innerHTML = code;
+		attestationWrapper.textContent = code;
 		
 		if (attestationFormat && attestationFormat.attStmt && attestationFormat.attStmt.x5c) {
 			let pem = '';
@@ -1623,7 +1623,7 @@ window.authnCreate = {
 		}
 
 		// Show extensions
-		extensionsWrapper.innerHTML = JSON.stringify(this.extensions, null, 4);
+		extensionsWrapper.textContent = JSON.stringify(this.extensions, null, 4);
 	},
 
 	optionsTextContent : function(text) {

@@ -599,7 +599,7 @@ window.authnGet = {
 				'    return Uint8Array.from(atob(x.replace(/-/g, \'+\').replace(/_/g, \'/\')), c => c.charCodeAt(0));\n' +
 				'};';
 		code = this.swapIdentifiedBuffers(code, info, {'Uint8Array':'fb64("{{value}}")'});
-		rawWrapper.innerHTML = code;
+		rawWrapper.textContent = code;
 
 		options = window._.cloneDeep(this.options);
 		dynamicWrapper.innerHTML = '';
@@ -647,7 +647,7 @@ window.authnGet = {
 			JSON.stringify(credential, null, 4)
 				.replace(new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'), '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')');
 		code = this.swapIdentifiedBuffers(code, info);
-		rawWrapper.innerHTML = code;
+		rawWrapper.textContent = code;
 
 		// Render decoded
 		credential = window._.cloneDeep($credential);
@@ -668,10 +668,10 @@ window.authnGet = {
 				.replace(new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'), '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')')
 				.replace(/"flags": "([01]+)"/, '"flags": 0x$1');
 		code = this.swapIdentifiedBuffers(code, info);
-		decodedWrapper.innerHTML = code;
+		decodedWrapper.textContent = code;
 
 		// Show extensions
-		extensionsWrapper.innerHTML = JSON.stringify(this.extensions, null, 4);
+		extensionsWrapper.textContent = JSON.stringify(this.extensions, null, 4);
 	},
 
 	optionsTextContent : function(text) {
