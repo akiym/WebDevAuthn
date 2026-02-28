@@ -49,7 +49,11 @@ window.authnTools = {
 		return array;
 	},
 	uint8ArrayToBase64 : function(array) {
-		var string = String.fromCharCode.apply(null, new Uint8Array(array));
+		var bytes = new Uint8Array(array);
+		var string = '';
+		for (var i = 0; i < bytes.length; i++) {
+			string += String.fromCharCode(bytes[i]);
+		}
 		return this.stringToBase64(string);
 	},
 
