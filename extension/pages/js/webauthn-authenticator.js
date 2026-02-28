@@ -536,8 +536,7 @@ window.AuthnDevice = (function (localURL) {
 			'type': 'webauthn.create',
 			'challenge': window.authnTools.uint8ArrayToBase64url(challenge),
 			'origin': origin,
-			'crossOrigin': false,
-			'virtual_authenticator' : 'GramThanos & University of Piraeus'
+			'crossOrigin': false
 		}
 		//console.log(client_data);
 		client_data = JSON.stringify(client_data);
@@ -735,8 +734,7 @@ window.AuthnDevice = (function (localURL) {
 			'type': 'webauthn.get',
 			'challenge': window.authnTools.uint8ArrayToBase64url(challenge),
 			'origin': origin,
-			'crossOrigin' : false,
-			'virtual_authenticator' : 'GramThanos & University of Piraeus'
+			'crossOrigin' : false
 		}
 		client_data = JSON.stringify(client_data);
 		client_data = new TextEncoder().encode(client_data);
