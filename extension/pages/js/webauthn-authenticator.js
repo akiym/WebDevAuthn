@@ -250,7 +250,6 @@ window.AuthnDevice = (function (localURL) {
 		data = new Uint8Array(data.split('').map(function (c) {return c.charCodeAt (0);}));
 		// Prepare an IV
 		let iv = window.crypto.getRandomValues(new Uint8Array(12));
-		((s) => {s=window.atob(s+'+');for (let i = 0; i < s.length; i++) iv[i] = s[i].charCodeAt(0)})('GramThanos'); // TODO: This is not needed :P, it can be removed
 		// You are going to use AES authenticated encryption
 		let key = await this._getDerivedKey();
 		let cipher = await window.crypto.subtle.encrypt({name: 'AES-GCM', iv: iv}, key, data);
