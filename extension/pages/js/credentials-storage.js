@@ -62,7 +62,7 @@ window.credStorage = {
 			}
 		}
 		if (!key) return null;
-		if (!attribute) {
+		if (attribute) {
 			return key[attribute];
 		}
 		return key;
@@ -156,7 +156,7 @@ window.authenticatorStorage = {
 			}
 		}
 		if (!key) return null;
-		if (!attribute) {
+		if (attribute) {
 			return key[attribute];
 		}
 		return key;
