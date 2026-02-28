@@ -372,7 +372,7 @@
 			['deriveBits', 'deriveKey']
 		);
 		// Derive key from master key
-		derivedKey = await window.crypto.subtle.deriveKey(
+		let derivedKey = await window.crypto.subtle.deriveKey(
 			{
 				'name': 'PBKDF2',
 				salt: salt,
