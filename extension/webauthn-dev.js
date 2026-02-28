@@ -499,7 +499,7 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 
 				// Patch object ancestors to be instance of AuthenticatorAssertionResponse
 				if (obj.patch !== false)
-					this['__proto__']['__proto__'] = cWindow.AuthenticatorAssertionResponse.prototype;
+					Object.setPrototypeOf(Object.getPrototypeOf(this), cWindow.AuthenticatorAssertionResponse.prototype);
 			}
 
 			// Expose that this is virtual
@@ -525,7 +525,7 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 
 				// Patch object ancestors to be instance of AuthenticatorAttestationResponse
 				if (obj.patch !== false)
-					this['__proto__']['__proto__'] = cWindow.AuthenticatorAttestationResponse.prototype;
+					Object.setPrototypeOf(Object.getPrototypeOf(this), cWindow.AuthenticatorAttestationResponse.prototype);
 			}
 
 			getAuthenticatorData () {
@@ -582,7 +582,7 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 
 				// Patch object ancestors to be instance of PublicKeyCredential
 				if (obj.patch !== false)
-					this['__proto__']['__proto__'] = cWindow.PublicKeyCredential.prototype;
+					Object.setPrototypeOf(Object.getPrototypeOf(this), cWindow.PublicKeyCredential.prototype);
 			}
 
 			// Extensions not yet implemented
