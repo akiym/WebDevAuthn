@@ -1031,8 +1031,8 @@ window.AuthnDevice = (function (localURL) {
 				return signature; 
 			}
 			else if (type.name == 'RSA-PSS') {
-				// ToDo Check
-				let signature = await crypto.subtle.sign({name: 'RSA-PSS', saltLength: 128}, private_key, data);
+				let saltLength = type.hash.name == 'SHA-384' ? 48 : type.hash.name == 'SHA-512' ? 64 : 32;
+				let signature = await crypto.subtle.sign({name: 'RSA-PSS', saltLength: saltLength}, private_key, data);
 				return new Uint8Array(signature); 
 			}
 			else if (type.name == 'RSASSA-PKCS1-v1_5') {
