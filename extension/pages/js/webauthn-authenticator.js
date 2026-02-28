@@ -1024,7 +1024,8 @@ window.AuthnDevice = (function (localURL) {
 			let type = private_key.algorithm;
 
 			if (type.name == 'ECDSA') {
-				let signature = await crypto.subtle.sign({name: 'ECDSA', hash: 'SHA-256'}, private_key, data);
+				let hash = type.namedCurve == 'P-384' ? 'SHA-384' : type.namedCurve == 'P-521' ? 'SHA-512' : 'SHA-256';
+				let signature = await crypto.subtle.sign({name: 'ECDSA', hash: hash}, private_key, data);
 				signature = ans1.parseSignatureECDSA(signature);
 				return signature; 
 			}
