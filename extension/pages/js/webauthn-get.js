@@ -738,8 +738,8 @@ window.authnGet = {
 		// Add button functionality
 		$('#credential-get-publickeycredentialdescriptor-add').click(() => {
 			let i = document.getElementsByClassName('credential-get-publickeycredentialdescriptor-select').length;
-			if (credentials.length < i) {
-				this.newCredentials(credentials[i]);
+			if (i < credentials.length) {
+				this.newCredentials(credentials[i].id);
 			}
 			else {
 				this.newCredentials();
