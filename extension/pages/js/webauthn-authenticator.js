@@ -973,9 +973,10 @@ window.AuthnDevice = (function (localURL) {
 			let cose_key = new Map();
 			
 			if (type.name == 'ECDSA') {
+				let curveId = type.namedCurve == 'P-384' ? 2 : type.namedCurve == 'P-521' ? 3 : 1;
 				cose_key.set( 1, 2);
 				cose_key.set( 3, alg);
-				cose_key.set(-1, 1);
+				cose_key.set(-1, curveId);
 				cose_key.set(-2, window.authnTools.base64urlToUint8Array(jwkPublicKey.x));
 				cose_key.set(-3, window.authnTools.base64urlToUint8Array(jwkPublicKey.y));
 			}
