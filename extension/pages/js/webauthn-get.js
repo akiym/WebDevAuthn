@@ -448,14 +448,14 @@ window.authnGet = {
 						if (!this.options.publicKey.extensions[extension].hasOwnProperty('salt1')) {
 							observations.push({message: '"publicKey.extensions.hmacGetSecret.salt1" was not found.', type: 'danger'});
 						}
-						else if (!this.options.publicKey.extensions[extension].salt1 instanceof ArrayBuffer) {
+						else if (!(this.options.publicKey.extensions[extension].salt1 instanceof ArrayBuffer)) {
 							observations.push({message: '"publicKey.extensions.hmacGetSecret.salt1" does not have an ArrayBuffer type value.', type: 'danger'});
 						}
 						else if (this.options.publicKey.extensions[extension].salt1.byteLength != 32) {
 							observations.push({message: '"publicKey.extensions.hmacGetSecret.salt1" is not 32 bytes long.', type: 'danger'});
 						}
 						if (this.options.publicKey.extensions[extension].hasOwnProperty('salt2')) {
-							if (!this.options.publicKey.extensions[extension].salt2 instanceof ArrayBuffer) {
+							if (!(this.options.publicKey.extensions[extension].salt2 instanceof ArrayBuffer)) {
 								observations.push({message: '"publicKey.extensions.hmacGetSecret.salt2" does not have an ArrayBuffer type value.', type: 'danger'});
 							}
 							else if (this.options.publicKey.extensions[extension].salt2.byteLength != 32) {
@@ -521,7 +521,7 @@ window.authnGet = {
 						if (!this.options.publicKey.extensions[extension].hasOwnProperty('content')) {
 							observations.push({message: '"publicKey.extensions.txAuthGeneric.content" was not found.', type: 'danger'});
 						}
-						else if (!this.options.publicKey.extensions[extension].content instanceof ArrayBuffer) {
+						else if (!(this.options.publicKey.extensions[extension].content instanceof ArrayBuffer)) {
 							observations.push({message: '"publicKey.extensions.txAuthGeneric.content" does not have a USVString type value.', type: 'danger'});
 						}
 						// Check for unknown keys
