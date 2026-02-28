@@ -212,12 +212,18 @@ window.authnTools = {
 		//});
 	},
 	unserialize : function(jsonStr) {
+		var allowedTypes = {
+			'Int8Array': Int8Array, 'Uint8Array': Uint8Array, 'Uint8ClampedArray': Uint8ClampedArray,
+			'Int16Array': Int16Array, 'Uint16Array': Uint16Array, 'Int32Array': Int32Array,
+			'Uint32Array': Uint32Array, 'Float32Array': Float32Array, 'Float64Array': Float64Array
+		};
 		return JSON.parse(jsonStr, function(key, value) {
 			try {
 				if (value.hasOwnProperty('flag') && value.flag === 'FLAG_TYPED_ARRAY') {
 					if (value.constructor === 'ArrayBuffer')
 						return new Uint8Array(value.data).buffer;
-					return new window[value.constructor](value.data);
+					var TypedArray = allowedTypes[value.constructor];
+					if (TypedArray) return new TypedArray(value.data);
 				}
 			} catch(e) {}
 			return value;
