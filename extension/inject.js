@@ -1,6 +1,6 @@
 (function () {
 	'use strict';
-	let Browser = chrome || browser;
+	let Browser = typeof chrome !== 'undefined' ? chrome : browser;
 	let analyser = {
 		domain : Browser.runtime.getURL('pages'),
 		createPath : '/credential-creation.html',
