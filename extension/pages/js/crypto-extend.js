@@ -112,7 +112,7 @@
 							ext: key.extractable,
 							key_ops: key.usages.concat(),
 							kty: 'FLCN',
-							n: key.n,
+							n: key.algorithm.n,
 							p: tools.uint8ArrayToBase64url(key._data.p)
 						};
 						if (key.type == 'private') {
