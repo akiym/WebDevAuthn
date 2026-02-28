@@ -57,15 +57,13 @@ window.AuthnDevice = (function (localURL) {
 			aaguid : false
 		};
 
-		// Default master key and salt
-		let default_masterkey = 'GramThanos @ UNIPI - Virtual Authenticator';
+		// Default salt (master key is loaded on demand from extension storage)
 		let default_salt = (() => {
 			let salt = new Uint8Array(16);
 			for (let i = 16 - 1; i >= 0; i--) salt[i] = i;
 			return salt.buffer;
 		})();
-		// This key is used to wrap the authenticator's data and store them at a server
-		this.setMasterKey(default_masterkey, default_salt);
+		this.setMasterKey(null, default_salt);
 	};
 
 	// Set testing parameter
@@ -88,7 +86,13 @@ window.AuthnDevice = (function (localURL) {
 	// Set an other master key
 	AuthnDevice.prototype.setMasterKey = function(masterkey, salt = null, iterations = 100000) {
 		this.masterkey = masterkey;
-		if (salt) this.masterkeysalt = salt;
+		if (salt) {
+			this.masterkeysalt = salt;
+		} else if (masterkey) {
+			let newSalt = new Uint8Array(16);
+			crypto.getRandomValues(newSalt);
+			this.masterkeysalt = newSalt.buffer;
+		}
 		this.derivedKey = null;
 		this.masterkeyIterations = iterations;
 	};
@@ -156,13 +160,47 @@ window.AuthnDevice = (function (localURL) {
 		return this.aaguid;
 	};
 
+	AuthnDevice._getExtensionStorage = function() {
+		if (typeof chrome !== 'undefined' && chrome.storage) return chrome.storage.local;
+		if (typeof browser !== 'undefined' && browser.storage) return browser.storage.local;
+		return null;
+	};
+
+	AuthnDevice._loadOrGenerateMasterKey = async function() {
+		let storage = AuthnDevice._getExtensionStorage();
+		if (storage) {
+			let result = await storage.get(['authn-masterkey', 'authn-masterkey-salt']);
+			if (result['authn-masterkey'] && result['authn-masterkey-salt']) {
+				return { key: result['authn-masterkey'], salt: result['authn-masterkey-salt'] };
+			}
+			let keyBytes = new Uint8Array(32);
+			crypto.getRandomValues(keyBytes);
+			let key = btoa(String.fromCharCode.apply(null, keyBytes));
+			let saltBytes = new Uint8Array(16);
+			crypto.getRandomValues(saltBytes);
+			let salt = btoa(String.fromCharCode.apply(null, saltBytes));
+			await storage.set({'authn-masterkey': key, 'authn-masterkey-salt': salt});
+			return { key: key, salt: salt };
+		}
+		throw new Error('No master key configured');
+	};
+
 	AuthnDevice.prototype._getDerivedKey = async function() {
 		if (!this.derivedKey) {
 			// If no master key
 			if (!this.masterkey) {
-				this.masterkey = prompt('Please enter your password to use the virtual authenticator', '');
-				if (!this.masterkey || this.masterkey.length < 1)
-					throw new Error('No password given');
+				if (this.askmasterkey) {
+					this.masterkey = prompt('Please enter your password to use the virtual authenticator', '');
+					if (!this.masterkey || this.masterkey.length < 1)
+						throw new Error('No password given');
+				} else {
+					let stored = await AuthnDevice._loadOrGenerateMasterKey();
+					this.masterkey = stored.key;
+					let saltStr = atob(stored.salt);
+					let saltBytes = new Uint8Array(saltStr.length);
+					for (let i = 0; i < saltStr.length; i++) saltBytes[i] = saltStr.charCodeAt(i);
+					this.masterkeysalt = saltBytes.buffer;
+				}
 			}
 			// Import given master key
 			let masterkey = await window.crypto.subtle.importKey(
@@ -1517,14 +1555,6 @@ window.VirtualAuthn = window.VirtualAuthn || ((credentials, AuthnDevice) => {
 			let ask4key = window.localStorage.getItem(this.name + '-always-ask-for-masterkey');
 			if (ask4key && ask4key == 'yes') {
 				this.device.alwaysAskMasterKey(true);
-			}
-			// Else use custom key or load default
-			else {
-				// Load MasterKey if it is changed
-				let masterkey = window.localStorage.getItem(this.name + '-masterkey');
-				//console.log('masterkey', masterkey);
-				if (masterkey) this.device.setMasterKey(masterkey);
-				//this.device.clearMasterKey();
 			}
 
 			this.restore_session();

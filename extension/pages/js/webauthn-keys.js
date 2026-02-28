@@ -319,7 +319,8 @@
 		document.getElementById('decryptWrappedKeyView-raw').getElementsByTagName('pre')[0].textContent = 'Decrypting ...';
 		document.getElementById('decryptWrappedKeyView-decoded').getElementsByTagName('pre')[0].textContent = 'Decrypting ...';
 
-		let passes = ['GramThanos @ UNIPI - Virtual Authenticator', window.localStorage.getItem('VirtualAuthn-masterkey')];
+		let stored = await AuthnDevice._loadOrGenerateMasterKey().catch(function() { return null; });
+		let passes = [stored ? stored.key : null];
 
 		//decodeStorage(keyid).then(x => console.log(x)).catch(x => console.log('error',x))
 		try {
@@ -342,7 +343,7 @@
 			lockDecrypt = false;
 		}
 	};
-	let decodeWrappedKey = async function(keyid, masterkey = 'GramThanos @ UNIPI - Virtual Authenticator', salt = null, iterations = 100000) {
+	let decodeWrappedKey = async function(keyid, masterkey = null, salt = null, iterations = 100000) {
 		if (salt) {
 			salt = window.authnTools.base64urlToUint8Array(salt);
 		}
@@ -445,37 +446,40 @@
 
 // Handle master key
 (function() {
-	let name = 'VirtualAuthn';
-	// Get key
-	let value = window.localStorage.getItem(name + '-masterkey');
-	if (value && value.length > 0) document.getElementById('localstorage-authenticator-masterkey').value = value;
+	let storage = AuthnDevice._getExtensionStorage();
+	if (!storage) return;
+
+	// Load current key
+	storage.get('authn-masterkey').then(function(result) {
+		if (result['authn-masterkey']) {
+			document.getElementById('localstorage-authenticator-masterkey').value = result['authn-masterkey'];
+		}
+	});
 	// On update
 	document.getElementById('localstorage-authenticator-masterkey').addEventListener('change', function() {
-		// If empty key, reset to default
+		// If empty key, remove (will be auto-generated on next use)
 		if (!this.value.length) {
-			window.localStorage.removeItem(name + '-masterkey');
-			window.jsNotify.danger('MasterKey was reset.', {time2live : 5*1000});
+			storage.remove('authn-masterkey');
+			window.jsNotify.danger('MasterKey was reset. A new one will be generated on next use.', {time2live : 5*1000});
 		}
 		// Update key
 		else {
-			window.localStorage.setItem(name + '-masterkey', this.value);
+			storage.set({'authn-masterkey': this.value});
 			window.jsNotify.success('MasterKey was Updated!', {time2live : 5*1000});
 		}
 	});
-	
+
 	document.getElementById('localstorage-authenticator-always-ask-for-masterkey').addEventListener('change', function() {
-		// If not checked, master key will not be asked every time
 		if (!this.checked) {
-			window.localStorage.removeItem(name + '-always-ask-for-masterkey');
+			window.localStorage.removeItem('VirtualAuthn-always-ask-for-masterkey');
 			window.jsNotify.danger('MasterKey will not be asked.', {time2live : 5*1000});
 		}
-		// Update key
 		else {
-			window.localStorage.setItem(name + '-always-ask-for-masterkey', 'yes');
+			window.localStorage.setItem('VirtualAuthn-always-ask-for-masterkey', 'yes');
 			window.jsNotify.success('MasterKey will be asked every time.', {time2live : 5*1000});
 		}
 	});
-	document.getElementById('localstorage-authenticator-always-ask-for-masterkey').checked = window.localStorage.getItem(name + '-always-ask-for-masterkey') == 'yes';
+	document.getElementById('localstorage-authenticator-always-ask-for-masterkey').checked = window.localStorage.getItem('VirtualAuthn-always-ask-for-masterkey') == 'yes';
 
 	let visibility = false;
 	document.getElementById('localstorage-authenticator-masterkey-visible').addEventListener('click', function() {
