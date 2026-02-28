@@ -927,9 +927,9 @@ window.addEventListener('error', (e) => {
 		};
 
 		// Hide unused GUI
-		let interface = document.getElementsByClassName('gui-custom-options');
-		for (var i = interface.length - 1; i >= 0; i--) {
-			interface[i].style.display = 'none';
+		let guiElements = document.getElementsByClassName('gui-custom-options');
+		for (var i = guiElements.length - 1; i >= 0; i--) {
+			guiElements[i].style.display = 'none';
 		}
 	};
 
