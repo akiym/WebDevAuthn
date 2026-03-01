@@ -1,9 +1,6 @@
-# WebDevAuthn
-A tool to test &amp; analyze FIDO2/WebAuthn requests and responses
+# WebDevAuthn (fork of https://github.com/GramThanos/WebDevAuthn)
 
- - WebDevAuthn Web Tool: https://gramthanos.github.io/WebDevAuthn/
- - Chrome Extension: https://chrome.google.com/webstore/detail/webdevauthn/aofdjdfdpmfeohecddhgdjfnigggddpd
- - Firefox Extension: https://addons.mozilla.org/firefox/addon/webdevauthn/
+A tool to test & analyze FIDO2/WebAuthn requests and responses
 
 ___
 
