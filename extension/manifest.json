@@ -32,7 +32,9 @@
 			"webauthn-dev.js",
 			"pages/*",
 			"pages/css/*",
+			"pages/css/vendor/*",
 			"pages/js/*",
+			"pages/js/vendor/*",
 			"pages/webfonts/*"
 		],
 		"matches": ["https://*/*", "http://*/*"]
