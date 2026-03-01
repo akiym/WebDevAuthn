@@ -54,6 +54,23 @@
 		if(!ready) fireLoad();
 	});
 
+	// Relay messages from page script to extension pages
+	window.addEventListener('message', (event) => {
+		if (event.source !== window) return;
+		if (!event.data || event.data._webdevauthn !== 'request') return;
+		Browser.runtime.sendMessage(event.data, () => {
+			if (Browser.runtime.lastError) {
+				// Extension page not ready yet, will retry
+			}
+		});
+	});
+
+	// Relay messages from extension pages to page script
+	Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+		if (!message || message._webdevauthn !== 'response') return;
+		window.postMessage(message, '*');
+	});
+
 	// Script injector loader
 	if (document.readyState == 'interactive' || document.readyState == 'complete') {
 		fireLoad();

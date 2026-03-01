@@ -90,13 +90,10 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 				return self.isUserVerifyingPlatformAuthenticatorAvailable.apply(self, arguments);
 			}
 
-			// Listen for messages from other pages
+			// Listen for response messages relayed through the content script
 			cWindow.addEventListener('message', (event) => {
-				if (event.origin !== new URL(this.devDomain).origin)
-					return;
-				if (!event.data.hasOwnProperty('id')) {
-					return;
-				}
+				if (!event.data || event.data._webdevauthn !== 'response') return;
+				if (!event.data.hasOwnProperty('id')) return;
 				this.handleResponse(event.data);
 			}, false);
 		},
@@ -116,6 +113,8 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 				return;
 			}
 			if (instance.status == 'assigned') {
+				// Ignore duplicate ack messages (no credential data)
+				if (!data.hasOwnProperty('credential')) return;
 				instance.status = 'completed';
 				//let credential = this.unserialize(data.credential);
 				//credential.getClientExtensionResults = () => {return {}};
@@ -165,11 +164,25 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 				}
 				// If popup is pending
 				if (pending) return;
-				// Check if window closed
-				if (!instance.win || instance.win.closed) {
+				// Check if window reference is missing (popup blocked)
+				if (!instance.win) {
+					if (popups >= 3) {
+						instance.reject(new Error('Failed to open WebDevAuthn.'));
+						return;
+					}
+					popups++;
+					pending = true;
+					Popup('Unblock window opening and try again!', 'alert').then(() => {
+						instance.win = openWin();
+						pending = false;
+					});
+					return;
+				}
+				// Check if waited too long
+				tries++;
+				if (tries > 15 * (1000/ms) ) {
 					clearInterval(interval);
-					//instance.reject(new Error('Failed to open WebDevAuthn.'));
-					//instance.reject(new Error('Failed to communicate with WebDevAuthn. Maybe cross website communication is blocked.'));
+					// Fallback to URL parameter method
 					let url = this.devDomain + (
 						instance.authn == 'create' ?
 							this.devCreatePath :
@@ -194,35 +207,18 @@ window.WebDevAuthn = window.WebDevAuthn || ((cWindow, credentials, PKCredential)
 					});
 					return;
 				}
-				// Check if waited too long
-				tries++;
-				if (tries > 15 * (1000/ms) ) {
-					clearInterval(interval);
-					instance.reject(new Error('Failed to open WebDevAuthn.'));
-					return;
-				}
-				// Send request to handle message
-				if (!instance.win) {
-					if (popups >= 3) {
-						instance.reject(new Error('Failed to open WebDevAuthn.'));
-						return;
-					}
-					popups++;
-					pending = true;
-					Popup('Unblock window opening and try again!', 'alert').then(() => {
-						instance.win = openWin();
-						pending = false;
-					});
-					return;
-				}
-				instance.win.postMessage({
+				// Send request via content script relay (works with COOP)
+				let msg = {
+					_webdevauthn: 'request',
+					authn: instance.authn,
 					id: instance.id,
 					type: instance.type,
 					url: instance.url,
 					options: this.serialize(instance.options),
 					credential: this.serialize(instance.credential),
 					extensions: this.serialize(instance.extensions)
-				}, this.devDomain);
+				};
+				cWindow.postMessage(msg, '*');
 			}, ms);
 		},
 

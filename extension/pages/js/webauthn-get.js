@@ -988,24 +988,31 @@ window.addEventListener('error', (e) => {
 		});
 	}, false);
 
-	if (!window.opener)
-		return;
+	// Handle requests for authentications through chrome.runtime messaging
+	let Browser = typeof chrome !== 'undefined' ? chrome : browser;
+	let processedIds = new Set();
+	Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+		if (!message || message._webdevauthn !== 'request') return;
+		if (message.authn !== 'get') return;
+		if (!sender.tab) return;
+		if (processedIds.has(message.id)) return;
+		processedIds.add(message.id);
+		let tabId = sender.tab.id;
+		let origin = sender.url ? new URL(sender.url).origin : null;
 
-	// Handle requests for authentications through message posting
-	window.addEventListener('message', (event) => {
-		// Send response
-		window.opener.postMessage({
-			id: event.data.id,
+		// Send ack
+		Browser.tabs.sendMessage(tabId, {
+			_webdevauthn: 'response',
+			id: message.id,
 			message: 'Request received!'
-		}, event.origin);
+		});
 
 		let responseCallback = (response) => {
-			// Send credential
-			window.opener.postMessage(response, event.origin);
+			Browser.tabs.sendMessage(tabId, {...response, _webdevauthn: 'response'});
 			// Show message
 			window.jsNotify.success('Credentials returned!', {time2live : 5*1000});
 		};
 
-		externalRequestsHandler(event.origin, event.data, responseCallback);
-	}, false);
+		externalRequestsHandler(origin, message, responseCallback);
+	});
 })();
