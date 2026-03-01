@@ -28,16 +28,6 @@ Virtual Authenticator Device:
 
 ___
 
-
-### Contact me
-
-Please feel free to contact me to leave me your feedback or to express your thoughts.
-
-You can [open an issue](https://github.com/GramThanos/WebDevAuthn/issues) or [send me a mail](mailto:gramthanos@gmail.com)
-
-___
-
-
 ### About
 
 This web application was developed as part of my thesis for the postgraduate programme "Digital Systems Security" and research conducted as part of the [Systems Security Laboratory](https://laboratories.ds.unipi.gr/ssl/)
