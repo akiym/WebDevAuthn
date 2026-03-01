@@ -559,6 +559,69 @@ window.WebDevAuthn =
       }
     }
 
+    // Extract COSE public key from authenticator data
+    let _extractCOSEKey = function (authData) {
+      const flags = authData[32]
+      if (!(flags & 0x40)) return null
+      const view = new DataView(authData.buffer, authData.byteOffset, authData.byteLength)
+      let pos = 53 // rpIdHash(32) + flags(1) + signCount(4) + AAGUID(16)
+      const credIdLen = view.getUint16(pos)
+      pos += 2 + credIdLen
+      return cWindow.CBOR.decode(authData.slice(pos).buffer)
+    }
+
+    // Convert COSE public key to DER SubjectPublicKeyInfo
+    let _coseKeyToSPKI = function (coseKey) {
+      const concat = (...arrs) => {
+        const r = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0))
+        let o = 0
+        for (const a of arrs) {
+          r.set(a, o)
+          o += a.length
+        }
+        return r
+      }
+      const derLen = (n) => {
+        if (n < 0x80) return new Uint8Array([n])
+        if (n < 0x100) return new Uint8Array([0x81, n])
+        return new Uint8Array([0x82, (n >> 8) & 0xff, n & 0xff])
+      }
+      const derWrap = (tag, c) => concat(new Uint8Array([tag]), derLen(c.length), c)
+      const derInt = (b) => {
+        const padded = b[0] & 0x80 ? concat(new Uint8Array([0x00]), b) : b
+        return derWrap(0x02, padded)
+      }
+
+      const kty = coseKey[1]
+
+      // EC2 (ECDSA)
+      if (kty === 2) {
+        const crv = coseKey[-1]
+        const ecOID = new Uint8Array([0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01])
+        const curves = {
+          1: new Uint8Array([0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07]), // P-256
+          2: new Uint8Array([0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22]), // P-384
+          3: new Uint8Array([0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x23]), // P-521
+        }
+        if (!curves[crv]) return null
+        const algId = derWrap(0x30, concat(ecOID, curves[crv]))
+        const point = concat(new Uint8Array([0x04]), coseKey[-2], coseKey[-3])
+        return derWrap(0x30, concat(algId, derWrap(0x03, concat(new Uint8Array([0x00]), point))))
+      }
+
+      // RSA
+      if (kty === 3) {
+        const rsaOID = new Uint8Array([
+          0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+        ])
+        const algId = derWrap(0x30, concat(rsaOID, new Uint8Array([0x05, 0x00])))
+        const rsaKey = derWrap(0x30, concat(derInt(coseKey[-1]), derInt(coseKey[-2])))
+        return derWrap(0x30, concat(algId, derWrap(0x03, concat(new Uint8Array([0x00]), rsaKey))))
+      }
+
+      return null
+    }
+
     // Virtual AuthenticatorAttestationResponse
     // Based on: https://developer.mozilla.org/en-US/docs/Web/API/AuthenticatorAttestationResponse
     let VirtualAuthenticatorAttestationResponse = function () {
@@ -579,22 +642,48 @@ window.WebDevAuthn =
         }
 
         getAuthenticatorData() {
-          // ToDo https://www.w3.org/TR/webauthn-2/#iface-authenticatorattestationresponse
-          return null
+          try {
+            const decoded = cWindow.CBOR.decode(this.attestationObject)
+            const authData = decoded.authData
+            if (!authData) return null
+            return authData.buffer.slice(
+              authData.byteOffset,
+              authData.byteOffset + authData.byteLength,
+            )
+          } catch (e) {
+            return null
+          }
         }
 
         getPublicKey() {
-          // ToDo https://www.w3.org/TR/webauthn-2/#iface-authenticatorattestationresponse
-          return null
+          try {
+            const decoded = cWindow.CBOR.decode(this.attestationObject)
+            const authData = decoded.authData
+            if (!authData) return null
+            const coseKey = _extractCOSEKey(authData)
+            if (!coseKey) return null
+            const spki = _coseKeyToSPKI(coseKey)
+            return spki ? spki.buffer : null
+          } catch (e) {
+            return null
+          }
         }
 
         getPublicKeyAlgorithm() {
-          // ToDo https://www.w3.org/TR/webauthn-2/#iface-authenticatorattestationresponse
-          return null
+          try {
+            const decoded = cWindow.CBOR.decode(this.attestationObject)
+            const authData = decoded.authData
+            if (!authData) return null
+            const coseKey = _extractCOSEKey(authData)
+            if (!coseKey) return null
+            return coseKey[3]
+          } catch (e) {
+            return null
+          }
         }
 
         getTransports() {
-          return []
+          return ['internal']
         }
 
         // Expose that this is virtual

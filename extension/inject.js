@@ -25,10 +25,18 @@
     // If turned off disable
     if (!getBoolean('option@development')) return
 
+    // Load CBOR library before webauthn-dev.js
+    let cbor = document.createElement('script')
+    cbor.setAttribute('type', 'text/javascript')
+    cbor.setAttribute('src', Browser.runtime.getURL('pages/js/vendor/cbor.js'))
+    cbor.async = false
+    document.head.appendChild(cbor)
+
     // Prepare script
     let script = document.createElement('script')
     script.setAttribute('type', 'text/javascript')
     script.setAttribute('src', Browser.runtime.getURL('webauthn-dev.js'))
+    script.async = false
     // Parameters
     script.setAttribute('dev-domain', analyser.domain)
     script.setAttribute('development', getBoolean('option@development'))
