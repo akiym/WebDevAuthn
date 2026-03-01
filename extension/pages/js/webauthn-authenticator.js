@@ -470,7 +470,11 @@ window.AuthnDevice = (function (localURL) {
 		let keyPairAlg = algs[0].alg;
 		
 		// Check if required Resident Key aka Discoverable credential
-		let requestResidentKey = (options.publicKey.authenticatorSelection && options.publicKey.authenticatorSelection.requireResidentKey === true);
+		let requestResidentKey = (options.publicKey.authenticatorSelection && (
+			options.publicKey.authenticatorSelection.requireResidentKey === true ||
+			options.publicKey.authenticatorSelection.residentKey === 'required' ||
+			options.publicKey.authenticatorSelection.residentKey === 'preferred'
+		));
 		if (this.testing.forceResidentKey) requestResidentKey = true;
 
 		// Calcualte RP ID and origin's effective domain

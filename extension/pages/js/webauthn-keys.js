@@ -114,19 +114,16 @@
 
 			// Authenticator Storage
 			let data = window.authenticatorStorage.getById(credentials[i].id);
-			if (data) {
-				//Resident Key aka Discoverable credential
-				let modality = document.createElement('span');
-				modality.style.fontSize = '0.7em';
-				modality.textContent = 'Storage modality:';
-				wrapper.appendChild(modality);
-				wrapper.appendChild(document.createTextNode(' '));
-				modality = document.createElement('span');
-				modality.className = 'badge bg-secondary text-light';
-				modality.textContent = (data.keyid != data.wrappedKey) ? 'server-side (inside credential ID)' : 'client-side (Resident Key aka Discoverable credential)';
-				wrapper.appendChild(modality);
-				wrapper.appendChild(document.createElement('br'));
-			}
+			let modality = document.createElement('span');
+			modality.style.fontSize = '0.7em';
+			modality.textContent = 'Storage modality:';
+			wrapper.appendChild(modality);
+			wrapper.appendChild(document.createTextNode(' '));
+			modality = document.createElement('span');
+			modality.className = 'badge bg-secondary text-light';
+			modality.textContent = data ? 'client-side (Resident Key aka Discoverable credential)' : 'server-side (inside credential ID)';
+			wrapper.appendChild(modality);
+			wrapper.appendChild(document.createElement('br'));
 
 			tr.appendChild(wrapper);
 
