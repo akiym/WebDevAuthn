@@ -200,6 +200,10 @@ window.authnCreate = {
         if (typeof e.stack === 'string') {
           window.jsNotify.danger(e.stack.replace(/\n/g, '<br>'))
         }
+        if (this.crossSiteErrorReponse) {
+          this.crossSiteErrorReponse(e)
+          this.crossSiteErrorReponse = null
+        }
       })
   },
 
@@ -2586,6 +2590,12 @@ window.addEventListener(
         id: data.id,
         options: window.authnTools.serialize(window.authnCreate.options),
         credential: window.authnTools.serialize(window.authnCreate.credential),
+      })
+    }
+    window.authnCreate.crossSiteErrorReponse = (error) => {
+      callback({
+        id: data.id,
+        error: { name: error.name || 'Error', message: error.message },
       })
     }
 

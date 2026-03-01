@@ -138,6 +138,12 @@ window.WebDevAuthn =
           return
         }
         if (instance.status == 'assigned') {
+          // Handle error responses
+          if (data.hasOwnProperty('error')) {
+            instance.status = 'completed'
+            instance.reject(new DOMException(data.error.message, data.error.name))
+            return
+          }
           // Ignore duplicate ack messages (no credential data)
           if (!data.hasOwnProperty('credential')) return
           instance.status = 'completed'
