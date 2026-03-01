@@ -538,6 +538,30 @@ window.AuthnDevice = (function (localURL) {
       }
     }
 
+    // Check excludeCredentials
+    if (options.publicKey.excludeCredentials && options.publicKey.excludeCredentials.length > 0) {
+      let excluded = await (async (params) => {
+        for (let i = 0; i < params.length; i++) {
+          if (params[i].type === 'public-key' && params[i].id) {
+            if (await this._cred_init(rpid, null, params[i].id)) return true
+            let idB64 = window.authnTools.uint8ArrayToBase64url(
+              new Uint8Array(
+                params[i].id instanceof ArrayBuffer ? params[i].id : params[i].id.buffer,
+              ),
+            )
+            if (await this._cred_init_with_ResidentKey(rpid, null, idB64)) return true
+          }
+        }
+        return false
+      })(options.publicKey.excludeCredentials)
+      if (excluded) {
+        throw new DOMException(
+          'The user attempted to register an authenticator that contains one of the credentials already registered with the relying party.',
+          'InvalidStateError',
+        )
+      }
+    }
+
     // Prepare new key
     await this._cred_init(rpid, userId, null, keyPairAlg)
     // Save resident key
