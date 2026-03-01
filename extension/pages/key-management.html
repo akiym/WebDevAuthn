@@ -343,6 +343,75 @@
       </div>
     </div>
 
+    <div
+      class="modal fade"
+      id="viewLargeBlob"
+      tabindex="-1"
+      aria-labelledby="viewLargeBlobLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="viewLargeBlobLabel">LargeBlob Data</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <ul class="nav nav-tabs" id="viewLargeBlobTabs" role="tablist">
+              <li class="nav-item">
+                <a
+                  class="nav-link active"
+                  id="viewLargeBlob-text-tab"
+                  data-toggle="tab"
+                  href="#viewLargeBlob-text"
+                  role="tab"
+                  aria-controls="viewLargeBlob-text"
+                  aria-selected="true"
+                  >Text</a
+                >
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link"
+                  id="viewLargeBlob-hex-tab"
+                  data-toggle="tab"
+                  href="#viewLargeBlob-hex"
+                  role="tab"
+                  aria-controls="viewLargeBlob-hex"
+                  aria-selected="false"
+                  >Hex</a
+                >
+              </li>
+            </ul>
+            <div class="tab-content">
+              <div
+                class="tab-pane fade show active"
+                id="viewLargeBlob-text"
+                role="tabpanel"
+                aria-labelledby="viewLargeBlob-text-tab"
+              >
+                <pre></pre>
+              </div>
+              <div
+                class="tab-pane fade"
+                id="viewLargeBlob-hex"
+                role="tabpanel"
+                aria-labelledby="viewLargeBlob-hex-tab"
+              >
+                <pre></pre>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" id="viewLargeBlob-delete">Delete</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="js/vendor/jquery-3.5.1.slim.min.js"></script>
     <script src="js/vendor/popper.min.js"></script>
     <script src="js/vendor/bootstrap.min.js"></script>

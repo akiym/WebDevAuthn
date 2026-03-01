@@ -226,13 +226,20 @@ window.AuthnDevice = (function (localURL) {
   }
 
   // The provided info will be encrypted using the master key and the
-  AuthnDevice.prototype._generateKeyId = async function () {
+  AuthnDevice.prototype._generateKeyId = async function (options) {
     // Prepare data for encryption
     let data = {
       v: 1, // Version
       r: this.rp_id, // Replay Party ID
       u: window.authnTools.uint8ArrayToBase64url(this.user_handle), // User handle
       c: this.createdAt.toString(36), // Creation Date
+    }
+    if (options && options.generatePrfSecret) {
+      data.v = 2
+      let prfSecret = new Uint8Array(32)
+      crypto.getRandomValues(prfSecret)
+      data.p = window.authnTools.uint8ArrayToBase64url(prfSecret)
+      this._prfSecret = prfSecret.buffer
     }
     data = await Algorithms.CryptoKeyWrap(this.private_key, data)
     data = JSON.stringify(data)
@@ -290,9 +297,15 @@ window.AuthnDevice = (function (localURL) {
       !data.hasOwnProperty('k') ||
       !data.hasOwnProperty('a') ||
       !data.hasOwnProperty('c') ||
-      data.v > 1
+      data.v > 2
     )
       return false
+    // Restore PRF secret if present
+    if (data.p) {
+      this._prfSecret = window.authnTools.base64urlToUint8Array(data.p).buffer
+    } else {
+      this._prfSecret = null
+    }
     // Relay Party should be the same
     if (data.r !== this.rp_id) return false
     // Import key
@@ -330,6 +343,7 @@ window.AuthnDevice = (function (localURL) {
     user_handle = null,
     key_id = null,
     alg = null,
+    options = null,
   ) {
     // Set Relay Party ID
     this.rp_id = rp_id
@@ -347,7 +361,7 @@ window.AuthnDevice = (function (localURL) {
       // Update counter
       this._updateCounter()
       // Generate Key Id that can be used to initialize the authenticator
-      await this._generateKeyId()
+      await this._generateKeyId(options)
     }
 
     // If key was given
@@ -460,6 +474,75 @@ window.AuthnDevice = (function (localURL) {
     return parseInt(bits, 2)
   }
 
+  AuthnDevice.prototype._findCredential = async function (rpid, allowCredentials) {
+    if (allowCredentials && allowCredentials.length > 0) {
+      for (let i = allowCredentials.length - 1; i >= 0; i--) {
+        if (
+          allowCredentials[i].type == 'public-key' &&
+          allowCredentials[i].id &&
+          (await this._cred_init(rpid, null, allowCredentials[i].id))
+        )
+          return true
+      }
+      for (let i = allowCredentials.length - 1; i >= 0; i--) {
+        if (
+          allowCredentials[i].type == 'public-key' &&
+          allowCredentials[i].id &&
+          (await this._cred_init_with_ResidentKey(rpid, null, allowCredentials[i].id))
+        )
+          return true
+      }
+    }
+    if (await this._cred_init_with_ResidentKey(rpid)) return true
+    return false
+  }
+
+  AuthnDevice.prototype._computePrfResults = async function (evalInput) {
+    if (!evalInput || !this._prfSecret) return null
+    let prefix = new TextEncoder().encode('WebAuthn PRF')
+    let zero = new Uint8Array([0x00])
+    let hmacKey = await crypto.subtle.importKey(
+      'raw',
+      this._prfSecret,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+    let results = {}
+    for (let label of ['first', 'second']) {
+      if (!evalInput[label]) continue
+      let input = new Uint8Array(
+        evalInput[label] instanceof ArrayBuffer ? evalInput[label] : evalInput[label].buffer,
+      )
+      let saltData = new Uint8Array(prefix.length + 1 + input.length)
+      saltData.set(prefix, 0)
+      saltData.set(zero, prefix.length)
+      saltData.set(input, prefix.length + 1)
+      let salt = await crypto.subtle.digest('SHA-256', saltData)
+      results[label] = await crypto.subtle.sign('HMAC', hmacKey, salt)
+    }
+    if (!results.first) return null
+    return results
+  }
+
+  AuthnDevice.prototype._readLargeBlob = function (credIdBase64url) {
+    let key = 'VirtualAuthn-largeblob-' + credIdBase64url
+    let stored = window.localStorage.getItem(key)
+    if (!stored) return null
+    return window.authnTools.base64urlToUint8Array(stored).buffer
+  }
+
+  AuthnDevice.prototype._writeLargeBlob = function (credIdBase64url, data) {
+    let key = 'VirtualAuthn-largeblob-' + credIdBase64url
+    if (data === null) {
+      window.localStorage.removeItem(key)
+      return true
+    }
+    let bytes = new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer)
+    window.localStorage.setItem(key, window.authnTools.uint8ArrayToBase64url(bytes))
+    return true
+  }
+
   AuthnDevice.prototype.create = async function (options, _origin) {
     // Check input
     if (!options || !options.publicKey) {
@@ -562,8 +645,12 @@ window.AuthnDevice = (function (localURL) {
       }
     }
 
+    // Check extensions
+    let extensions = options.publicKey.extensions || {}
+    let hasPrf = extensions.prf !== undefined
+
     // Prepare new key
-    await this._cred_init(rpid, userId, null, keyPairAlg)
+    await this._cred_init(rpid, userId, null, keyPairAlg, hasPrf ? { generatePrfSecret: true } : null)
     // Save resident key
     if (requestResidentKey) await this._saveResidentKey(rpid)
 
@@ -685,7 +772,38 @@ window.AuthnDevice = (function (localURL) {
       }
     }
 
-    // Clear master key if not needed
+    // Build extension results
+    let extensionResults = {}
+
+    // credProps
+    if (extensions.credProps === true) {
+      extensionResults.credProps = { rk: requestResidentKey }
+    }
+
+    // appidExclude
+    if (extensions.appidExclude) {
+      extensionResults.appidExclude = true
+    }
+
+    // prf
+    if (hasPrf) {
+      let prfResult = { enabled: true }
+      if (extensions.prf.eval) {
+        let results = await this._computePrfResults(extensions.prf.eval)
+        if (results) prfResult.results = results
+      }
+      extensionResults.prf = prfResult
+    }
+
+    // largeBlob
+    if (extensions.largeBlob) {
+      if (extensions.largeBlob.support === 'required' || extensions.largeBlob.support === 'preferred') {
+        extensionResults.largeBlob = { supported: true }
+      }
+    }
+
+    // Clear sensitive state
+    this._prfSecret = null
     if (this.askmasterkey) this.clearMasterKey()
 
     // Return Credentials
@@ -698,8 +816,7 @@ window.AuthnDevice = (function (localURL) {
       },
       type: 'public-key',
 
-      // Extensions
-      getClientExtensionResults: {},
+      getClientExtensionResults: extensionResults,
     })
   }
 
@@ -752,35 +869,36 @@ window.AuthnDevice = (function (localURL) {
       rpid = new URL('https://' + this.testing.relayPartyID).hostname
     }
 
+    // Check extensions
+    let extensions = options.publicKey.extensions || {}
+    let appidUsed = false
+
     // Check allowCredentials credentials
-    if (
-      !(await (async (params) => {
-        // If given keys
-        if (params && params.length > 0) {
-          // Check the given credentials
-          for (let i = params.length - 1; i >= 0; i--) {
-            if (
-              params[i].type == 'public-key' &&
-              params[i].id &&
-              (await this._cred_init(rpid, null, params[i].id))
-            )
-              return true
-          }
-          // Check the resident credentials by id
-          for (let i = params.length - 1; i >= 0; i--) {
-            if (
-              params[i].type == 'public-key' &&
-              params[i].id &&
-              (await this._cred_init_with_ResidentKey(rpid, null, params[i].id))
-            )
-              return true
-          }
+    let credFound = await this._findCredential(rpid, options.publicKey.allowCredentials)
+
+    // If not found and appid extension is present, retry with appid
+    if (!credFound && extensions.appid) {
+      let appidHostname
+      try {
+        appidHostname = new URL(extensions.appid).hostname
+      } catch (e) {
+        appidHostname = null
+      }
+      if (appidHostname) {
+        let savedRpid = rpid
+        rpid = appidHostname
+        this.rp_id = rpid
+        credFound = await this._findCredential(rpid, options.publicKey.allowCredentials)
+        if (credFound) {
+          appidUsed = true
+        } else {
+          rpid = savedRpid
+          this.rp_id = savedRpid
         }
-        // Check resident key
-        if (await this._cred_init_with_ResidentKey(rpid)) return true
-        return false
-      })(options.publicKey.allowCredentials))
-    ) {
+      }
+    }
+
+    if (!credFound) {
       throw new Error('No authenticator found for the requested allowCredentials')
     }
 
@@ -824,16 +942,55 @@ window.AuthnDevice = (function (localURL) {
     let client_data_hash = new Uint8Array(await crypto.subtle.digest('SHA-256', client_data))
     let signatureData = this._concatUint8Arrays(authData, client_data_hash)
     let signature = await Algorithms.Sign(this.private_key, signatureData)
-    //let signature = await crypto.subtle.sign({name: 'ECDSA', hash: 'SHA-256'}, this.private_key, signatureData);
-    // Convert signature
-    //signature = ans1.parseSignatureECDSA(signature);
 
-    // Clear master key if not needed
+    // Build extension results
+    let extensionResults = {}
+    let credIdBase64url = window.authnTools.uint8ArrayToBase64url(credential_id)
+
+    // appid
+    if (extensions.appid) {
+      extensionResults.appid = appidUsed
+    }
+
+    // prf
+    if (extensions.prf) {
+      let evalInput = null
+      if (extensions.prf.evalByCredential && extensions.prf.evalByCredential[credIdBase64url]) {
+        evalInput = extensions.prf.evalByCredential[credIdBase64url]
+      } else if (extensions.prf.eval) {
+        evalInput = extensions.prf.eval
+      }
+      let prfOutput = {}
+      if (this._prfSecret) {
+        prfOutput.enabled = true
+        if (evalInput) {
+          let results = await this._computePrfResults(evalInput)
+          if (results) prfOutput.results = results
+        }
+      } else {
+        prfOutput.enabled = false
+      }
+      extensionResults.prf = prfOutput
+    }
+
+    // largeBlob
+    if (extensions.largeBlob) {
+      if (extensions.largeBlob.read === true) {
+        let blob = this._readLargeBlob(credIdBase64url)
+        extensionResults.largeBlob = blob ? { blob: blob } : {}
+      } else if (extensions.largeBlob.write) {
+        let written = this._writeLargeBlob(credIdBase64url, extensions.largeBlob.write)
+        extensionResults.largeBlob = { written: written }
+      }
+    }
+
+    // Clear sensitive state
+    this._prfSecret = null
     if (this.askmasterkey) this.clearMasterKey()
 
     // Return Credentials
     return new (VirtualPublicKeyCredential())({
-      id: window.authnTools.uint8ArrayToBase64url(credential_id),
+      id: credIdBase64url,
       rawId: credential_id.buffer.slice(0),
       response: {
         authenticatorData: authData.buffer,
@@ -843,8 +1000,7 @@ window.AuthnDevice = (function (localURL) {
       },
       type: 'public-key',
 
-      // Extensions
-      getClientExtensionResults: {},
+      getClientExtensionResults: extensionResults,
     })
   }
 

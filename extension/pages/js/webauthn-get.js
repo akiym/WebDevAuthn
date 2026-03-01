@@ -1233,6 +1233,7 @@ window.addEventListener(
         id: data.id,
         options: window.authnTools.serialize(window.authnGet.options),
         credential: window.authnTools.serialize(window.authnGet.credential),
+        extensions: window.authnTools.serialize(window.authnGet.extensions || {}),
       })
     }
     window.authnGet.crossSiteErrorReponse = (error) => {

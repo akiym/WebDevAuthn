@@ -152,6 +152,10 @@ window.WebDevAuthn =
           console.log(data)
           let obj = this.unserialize(data.credential)
           obj.patch = this._patchPubCred ? true : false
+          if (data.extensions) {
+            let ext = this.unserialize(data.extensions)
+            obj.getClientExtensionResults = ext
+          }
           let credential = new (VirtualPublicKeyCredential())(obj)
           // Print data
           console.log('VirtualPublicKeyCredential', credential)

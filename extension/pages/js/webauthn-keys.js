@@ -124,6 +124,26 @@
       wrapper.appendChild(modality)
       wrapper.appendChild(document.createElement('br'))
 
+      // Extensions info
+      let hasLargeBlob = window.localStorage.getItem('VirtualAuthn-largeblob-' + credentials[i].id)
+      if (hasLargeBlob) {
+        let blobLabel = document.createElement('span')
+        blobLabel.style.fontSize = '0.7em'
+        blobLabel.textContent = 'LargeBlob:'
+        wrapper.appendChild(blobLabel)
+        wrapper.appendChild(document.createTextNode(' '))
+        let blobBadge = document.createElement('span')
+        blobBadge.className = 'badge bg-info text-light'
+        blobBadge.style.cursor = 'pointer'
+        let blobSize = window.authnTools.base64urlToUint8Array(hasLargeBlob).length
+        blobBadge.textContent = blobSize + ' bytes'
+        ;((credId) => {
+          blobBadge.addEventListener('click', () => window.viewLargeBlob(credId))
+        })(credentials[i].id)
+        wrapper.appendChild(blobBadge)
+        wrapper.appendChild(document.createElement('br'))
+      }
+
       tr.appendChild(wrapper)
 
       let actions = document.createElement('td')
@@ -136,7 +156,16 @@
         reload()
       })
       actions.appendChild(del)
-      if (window.authnTools.base64urlToUint8Array(credentials[i].id).length > 32) {
+      if (data) {
+        let decrypt = document.createElement('button')
+        decrypt.style.marginTop = '5px'
+        decrypt.className = 'btn btn-sm btn-secondary'
+        decrypt.textContent = 'UnWrap'
+        decrypt.addEventListener('click', function () {
+          window.tryToDecodeWrappedKey(data.wrappedKey, data.masterKeySalt)
+        })
+        actions.appendChild(decrypt)
+      } else if (window.authnTools.base64urlToUint8Array(credentials[i].id).length > 32) {
         let decrypt = document.createElement('button')
         decrypt.style.marginTop = '5px'
         decrypt.className = 'btn btn-sm btn-secondary'
@@ -262,6 +291,28 @@
       wrapper.appendChild(host)
       wrapper.appendChild(document.createElement('br'))
 
+      // Extensions info
+      let residentLargeBlob = window.localStorage.getItem(
+        'VirtualAuthn-largeblob-' + credentials[i].keyid,
+      )
+      if (residentLargeBlob) {
+        let blobLabel = document.createElement('span')
+        blobLabel.style.fontSize = '0.7em'
+        blobLabel.textContent = 'LargeBlob:'
+        wrapper.appendChild(blobLabel)
+        wrapper.appendChild(document.createTextNode(' '))
+        let blobBadge = document.createElement('span')
+        blobBadge.className = 'badge bg-info text-light'
+        blobBadge.style.cursor = 'pointer'
+        let blobSize = window.authnTools.base64urlToUint8Array(residentLargeBlob).length
+        blobBadge.textContent = blobSize + ' bytes'
+        ;((credId) => {
+          blobBadge.addEventListener('click', () => window.viewLargeBlob(credId))
+        })(credentials[i].keyid)
+        wrapper.appendChild(blobBadge)
+        wrapper.appendChild(document.createElement('br'))
+      }
+
       tr.appendChild(wrapper)
 
       let actions = document.createElement('td')
@@ -343,19 +394,19 @@
         document
           .getElementById('decryptWrappedKeyView-raw')
           .getElementsByTagName('pre')[0].textContent = JSON.stringify(data.raw, null, 4)
+        let decodedView = {
+          credential_id: window.authnTools.uint8ArrayToBase64url(data.decoded.credential_id),
+          user_handle: window.authnTools.uint8ArrayToBase64url(data.decoded.user_handle),
+          private_key: await window.crypto.subtle.exportKey('jwk', data.decoded.private_key),
+          public_key: await window.crypto.subtle.exportKey('jwk', data.decoded.public_key),
+          createdAt: new Date(data.decoded.createdAt).toUTCString(),
+        }
+        if (data.raw.p) {
+          decodedView.prfEnabled = true
+        }
         document
           .getElementById('decryptWrappedKeyView-decoded')
-          .getElementsByTagName('pre')[0].textContent = JSON.stringify(
-          {
-            credential_id: window.authnTools.uint8ArrayToBase64url(data.decoded.credential_id),
-            user_handle: window.authnTools.uint8ArrayToBase64url(data.decoded.user_handle),
-            private_key: await window.crypto.subtle.exportKey('jwk', data.decoded.private_key),
-            public_key: await window.crypto.subtle.exportKey('jwk', data.decoded.public_key),
-            createdAt: new Date(data.decoded.createdAt).toUTCString(),
-          },
-          null,
-          4,
-        )
+          .getElementsByTagName('pre')[0].textContent = JSON.stringify(decodedView, null, 4)
         lockDecrypt = false
         return
       }
@@ -444,7 +495,7 @@
       !raw.hasOwnProperty('k') ||
       !raw.hasOwnProperty('a') ||
       !raw.hasOwnProperty('c') ||
-      raw.v > 1
+      raw.v > 2
     )
       return false
 
@@ -469,6 +520,43 @@
       decoded: data,
     }
   }
+})()
+
+// View LargeBlob
+;(function () {
+  let currentCredId = null
+  window.viewLargeBlob = function (credIdBase64url) {
+    currentCredId = credIdBase64url
+    let stored = window.localStorage.getItem('VirtualAuthn-largeblob-' + credIdBase64url)
+    if (!stored) return
+
+    let bytes = window.authnTools.base64urlToUint8Array(stored)
+
+    // Text
+    let text
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    } catch (e) {
+      text = '(not valid UTF-8)'
+    }
+    document.querySelector('#viewLargeBlob-text pre').textContent = text
+
+    // Hex
+    document.querySelector('#viewLargeBlob-hex pre').textContent = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ')
+
+    $('#viewLargeBlob').modal('show')
+  }
+
+  document.getElementById('viewLargeBlob-delete').addEventListener('click', function () {
+    if (!currentCredId) return
+    if (!confirm('Delete this LargeBlob data?')) return
+    window.localStorage.removeItem('VirtualAuthn-largeblob-' + currentCredId)
+    currentCredId = null
+    $('#viewLargeBlob').modal('hide')
+    window.jsNotify.success('LargeBlob deleted.', { time2live: 2 * 1000 })
+  })
 })()
 
 // Handle master key
