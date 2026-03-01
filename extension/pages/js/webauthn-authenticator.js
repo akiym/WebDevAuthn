@@ -145,7 +145,7 @@ window.AuthnDevice = (function (localURL) {
           return window.authnTools.base64urlToUint8Array(window.authnTools.stringToBase64url(guid))
         }
         // AAGUID based on GUID string
-        else if (guid.match(/^[0-9a-f\-]+$/i) && guid.replace(/-/g, '').length === 32) {
+        else if (guid.match(/^[0-9a-f-]+$/i) && guid.replace(/-/g, '').length === 32) {
           return window.authnTools.hexToUint8Array(guid.replace(/-/g, ''))
         }
       }
@@ -1207,7 +1207,7 @@ window.AuthnDevice = (function (localURL) {
             type = 0x04
             break
           default:
-            new Error('Unknown type "' + type + '"')
+            throw new Error('Unknown type "' + type + '"')
         }
       }
       return this.concatUint8Array(new Uint8Array([type, ...this.intToLength(value.length)]), value)
@@ -1243,7 +1243,7 @@ window.AuthnDevice = (function (localURL) {
       // Strings are used from multiple types in the form of `TYPE{VALUE}`
       else if (typeof obj === 'string') {
         // OBJECT IDENTIFIER
-        if (obj.match(/^OBJECT-IDENTIFIER{[0-9\.]+}$/i)) {
+        if (obj.match(/^OBJECT-IDENTIFIER{[0-9.]+}$/i)) {
           // https://stackoverflow.com/questions/5929050/how-does-asn-1-encode-an-object-identifier
           obj = obj.substring(18, obj.length - 1).split('.')
           let prefix = parseInt(obj.shift(), 10) * 40 + parseInt(obj.shift(), 10)
@@ -1346,7 +1346,7 @@ window.AuthnDevice = (function (localURL) {
       // Date convert to UTCTime or GeneralizedTime
       // https://www.obj-sys.com/asn1tutorial/node14.html
       else if (obj instanceof Date) {
-        let value = obj.toISOString().replace(/(\-|:|T|\.000)/g, '')
+        let value = obj.toISOString().replace(/(-|:|T|\.000)/g, '')
         value = value.split('').map(function (c) {
           return c.charCodeAt(0)
         })
