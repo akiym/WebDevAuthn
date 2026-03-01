@@ -827,6 +827,7 @@ window.AuthnDevice = (function (localURL) {
   // Algorithm
   let Algorithms = {
     CryptoKey2Code: function (key) {
+      if (key.algorithm.name == 'Ed25519') return -8 // (-8) EdDSA
       if (key.algorithm.name == 'ECDSA') {
         if (key.algorithm.namedCurve == 'P-256') return -7 // (-7) ECDSA w/ SHA-256
         if (key.algorithm.namedCurve == 'P-384') return -35 // (-35) ECDSA w/ SHA-384
@@ -857,6 +858,8 @@ window.AuthnDevice = (function (localURL) {
     },
     Code2CryptoKeyType: function (code) {
       if (isNaN(code) && code.algorithm) return code.algorithm
+
+      if (code == -8) return { name: 'Ed25519' }
 
       if (code == -7) return { name: 'ECDSA', namedCurve: 'P-256' }
       if (code == -35) return { name: 'ECDSA', namedCurve: 'P-384' }
@@ -926,7 +929,13 @@ window.AuthnDevice = (function (localURL) {
       // Export key
       let jwkPrivateKey = await crypto.subtle.exportKey('jwk', key)
 
-      if (
+      if (alg == -8)
+        // (-8) EdDSA
+        data.k = {
+          d: jwkPrivateKey.d,
+          x: jwkPrivateKey.x,
+        }
+      else if (
         alg == -7 || // (-7) ECDSA w/ SHA-256
         alg == -35 || // (-35) ECDSA w/ SHA-384
         alg == -36 // (-36) ECDSA w/ SHA-512
@@ -985,6 +994,17 @@ window.AuthnDevice = (function (localURL) {
     CryptoKeyUnWrap: async function (data) {
       let type = this.Code2CryptoKeyType(data.a)
 
+      if (type.name == 'Ed25519') {
+        data.k.crv = 'Ed25519'
+        data.k.ext = true
+        data.k.kty = 'OKP'
+        data.k.key_ops = ['sign']
+        let private_key = await crypto.subtle.importKey('jwk', data.k, type, true, ['sign'])
+        data.k.key_ops = ['verify']
+        delete data.k.d
+        let public_key = await crypto.subtle.importKey('jwk', data.k, type, true, ['verify'])
+        return { private_key, public_key }
+      }
       if (type.name == 'ECDSA') {
         // Key missing values
         data.k.crv = type.namedCurve
@@ -1069,7 +1089,12 @@ window.AuthnDevice = (function (localURL) {
       // Prepare COSE
       let cose_key = new Map()
 
-      if (type.name == 'ECDSA') {
+      if (type.name == 'Ed25519') {
+        cose_key.set(1, 1) // kty: OKP
+        cose_key.set(3, alg) // alg: EdDSA (-8)
+        cose_key.set(-1, 6) // crv: Ed25519
+        cose_key.set(-2, window.authnTools.base64urlToUint8Array(jwkPublicKey.x))
+      } else if (type.name == 'ECDSA') {
         let curveId = type.namedCurve == 'P-384' ? 2 : type.namedCurve == 'P-521' ? 3 : 1
         cose_key.set(1, 2)
         cose_key.set(3, alg)
@@ -1107,6 +1132,7 @@ window.AuthnDevice = (function (localURL) {
 
     Supported: function (params) {
       let algs = [
+        -8, // EdDSA
         -7,
         -35,
         -36, // ECDSA
@@ -1127,7 +1153,10 @@ window.AuthnDevice = (function (localURL) {
     Sign: async function (private_key, data) {
       let type = private_key.algorithm
 
-      if (type.name == 'ECDSA') {
+      if (type.name == 'Ed25519') {
+        let signature = await crypto.subtle.sign('Ed25519', private_key, data)
+        return new Uint8Array(signature)
+      } else if (type.name == 'ECDSA') {
         let hash =
           type.namedCurve == 'P-384'
             ? 'SHA-384'
