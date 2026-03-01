@@ -317,6 +317,9 @@
 		document.getElementById('decryptWrappedKeyView-decoded').getElementsByTagName('pre')[0].textContent = 'Decrypting ...';
 
 		let stored = await AuthnDevice._loadOrGenerateMasterKey().catch(function() { return null; });
+		if (!salt && stored) {
+			salt = window.authnTools.base64ToBase64url(stored.salt);
+		}
 		let passes = [stored ? stored.key : null];
 
 		//decodeStorage(keyid).then(x => console.log(x)).catch(x => console.log('error',x))
