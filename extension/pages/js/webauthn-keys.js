@@ -622,6 +622,105 @@
     })
 })()
 
+// Handle CA key and certificate params
+;(function () {
+  let storage = AuthnDevice._getExtensionStorage()
+  if (!storage) return
+
+  let caKeyEl = document.getElementById('ca-private-key')
+  if (!caKeyEl) return
+
+  let certFields = {
+    issuerCountryName: 'cert-issuer-country',
+    issuerOrganizationName: 'cert-issuer-org',
+    issuerCommonName: 'cert-issuer-cn',
+    subjectCountryName: 'cert-subject-country',
+    subjectOrganizationName: 'cert-subject-org',
+    subjectOrganizationalUnitName: 'cert-subject-ou',
+    subjectCommonName: 'cert-subject-cn',
+  }
+
+  // Load CA key
+  storage.get('authn-ca-private-key').then(function (result) {
+    if (result['authn-ca-private-key']) {
+      caKeyEl.value = result['authn-ca-private-key']
+    }
+  })
+
+  // Load cert params
+  try {
+    let stored = localStorage.getItem('VirtualAuthn-cert-params')
+    if (stored) {
+      let params = JSON.parse(stored)
+      for (let key in certFields) {
+        if (params[key]) document.getElementById(certFields[key]).value = params[key]
+      }
+    }
+  } catch (e) {}
+
+  // On CA key change
+  caKeyEl.addEventListener('change', function () {
+    if (!this.value.trim().length) {
+      storage.remove('authn-ca-private-key')
+      window.jsNotify.danger('CA Key was cleared. A new one will be generated on next use.', {
+        time2live: 5 * 1000,
+      })
+      return
+    }
+    try {
+      let jwk = JSON.parse(this.value)
+      if (jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d) {
+        throw new Error('Invalid key')
+      }
+      storage.set({ 'authn-ca-private-key': this.value })
+      window.jsNotify.success('CA Key was updated!', { time2live: 5 * 1000 })
+    } catch (e) {
+      window.jsNotify.danger('Invalid JWK format. Key must be EC P-256.', { time2live: 5 * 1000 })
+    }
+  })
+
+  // Generate button
+  document.getElementById('ca-private-key-generate').addEventListener('click', async function () {
+    let keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ])
+    let jwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey)
+    let jwkStr = JSON.stringify(jwk)
+    caKeyEl.value = jwkStr
+    storage.set({ 'authn-ca-private-key': jwkStr })
+    window.jsNotify.success('CA Key was generated!', { time2live: 5 * 1000 })
+  })
+
+  // Clear button
+  document.getElementById('ca-private-key-clear').addEventListener('click', function () {
+    caKeyEl.value = ''
+    storage.remove('authn-ca-private-key')
+    window.jsNotify.danger('CA Key was cleared. A new one will be generated on next use.', {
+      time2live: 5 * 1000,
+    })
+  })
+
+  // Certificate params change handler
+  function saveCertParams() {
+    let params = {}
+    for (let key in certFields) {
+      let val = document.getElementById(certFields[key]).value.trim()
+      if (val) params[key] = val
+    }
+    if (Object.keys(params).length > 0) {
+      localStorage.setItem('VirtualAuthn-cert-params', JSON.stringify(params))
+    } else {
+      localStorage.removeItem('VirtualAuthn-cert-params')
+    }
+    window.jsNotify.success('Certificate parameters updated!', { time2live: 5 * 1000 })
+  }
+
+  for (let key in certFields) {
+    document.getElementById(certFields[key]).addEventListener('change', saveCertParams)
+  }
+})()
+
 // Handle errors
 window.addEventListener(
   'error',

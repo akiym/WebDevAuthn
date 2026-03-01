@@ -626,7 +626,10 @@ window.WebDevAuthn =
         if (crv !== 6) return null
         const ed25519OID = new Uint8Array([0x06, 0x03, 0x2b, 0x65, 0x70])
         const algId = derWrap(0x30, ed25519OID)
-        return derWrap(0x30, concat(algId, derWrap(0x03, concat(new Uint8Array([0x00]), coseKey[-2]))))
+        return derWrap(
+          0x30,
+          concat(algId, derWrap(0x03, concat(new Uint8Array([0x00]), coseKey[-2]))),
+        )
       }
 
       // RSA

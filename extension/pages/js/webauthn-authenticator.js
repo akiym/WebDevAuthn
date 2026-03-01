@@ -179,6 +179,55 @@ window.AuthnDevice = (function (localURL) {
     throw new Error('No master key configured')
   }
 
+  AuthnDevice._loadOrGenerateCAKey = async function () {
+    let storage = AuthnDevice._getExtensionStorage()
+    if (storage) {
+      let result = await storage.get('authn-ca-private-key')
+      if (result['authn-ca-private-key']) {
+        let jwk = JSON.parse(result['authn-ca-private-key'])
+        return await crypto.subtle.importKey(
+          'jwk',
+          jwk,
+          { name: 'ECDSA', namedCurve: 'P-256' },
+          true,
+          ['sign'],
+        )
+      }
+    }
+    let keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ])
+    let jwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey)
+    if (storage) {
+      await storage.set({ 'authn-ca-private-key': JSON.stringify(jwk) })
+    }
+    return keyPair.privateKey
+  }
+
+  AuthnDevice._getCertificateParams = function () {
+    let defaults = {
+      identifier: 424242424242,
+      issuerCountryName: 'US',
+      issuerOrganizationName: 'Test',
+      issuerCommonName: 'Test CA',
+      subjectCountryName: 'US',
+      subjectOrganizationName: 'Test',
+      subjectOrganizationalUnitName: 'Authenticator Attestation',
+      subjectCommonName: 'Test Authenticator',
+    }
+    try {
+      let stored = localStorage.getItem('VirtualAuthn-cert-params')
+      if (stored) {
+        let params = JSON.parse(stored)
+        for (let key in params) {
+          if (params[key]) defaults[key] = params[key]
+        }
+      }
+    } catch (e) {}
+    return defaults
+  }
+
   AuthnDevice.prototype._getDerivedKey = async function () {
     if (!this.derivedKey) {
       // If no master key
@@ -650,7 +699,13 @@ window.AuthnDevice = (function (localURL) {
     let hasPrf = extensions.prf !== undefined
 
     // Prepare new key
-    await this._cred_init(rpid, userId, null, keyPairAlg, hasPrf ? { generatePrfSecret: true } : null)
+    await this._cred_init(
+      rpid,
+      userId,
+      null,
+      keyPairAlg,
+      hasPrf ? { generatePrfSecret: true } : null,
+    )
     // Save resident key
     if (requestResidentKey) await this._saveResidentKey(rpid)
 
@@ -724,50 +779,29 @@ window.AuthnDevice = (function (localURL) {
 
       // If direct generate certificate
       if (options.publicKey.attestation == 'direct') {
-        // CA private key
-        let caPrivateKey = {
-          crv: 'P-256',
-          d: 'wNArRI8X1g4-atojTyJM-Q40bqTInVEH2ajIwFC0cV8',
-          ext: true,
-          key_ops: ['sign'],
-          kty: 'EC',
-          x: 'T88rAHd-XlvAV_mNmq0R-yQfQs0TVPyMK-lNhE6psnQ',
-          y: 'Qbmy_EVaC6FQWmpYqZyVuMzNymji6o2vXOOX2bMjPmI',
-        }
-        caPrivateKey = await window.crypto.subtle.importKey(
-          'jwk',
-          caPrivateKey,
-          { name: 'ECDSA', namedCurve: 'P-256' },
-          true,
-          ['sign'],
-        )
+        let caPrivateKey = await AuthnDevice._loadOrGenerateCAKey()
+        let certParams = AuthnDevice._getCertificateParams()
 
-        // Generate Certificate
         let cert = await ans1.generateCertificate(
           {
-            indentifier: 424242424242,
-            // Issued by
+            identifier: certParams.identifier,
             issuedBy: {
-              countryName: 'GR', // Subject-C: ISO 3166 code specifying the country where the Authenticator vendor is incorporated
-              organizationName: 'UNIPI SSL', // Subject-O: Legal name of the Authenticator vendor
-              commonName: 'UNIPI FIDO2 Virtual Authenticator CA', // Subject-CN: A string of the vendor’s choosing
+              countryName: certParams.issuerCountryName,
+              organizationName: certParams.issuerOrganizationName,
+              commonName: certParams.issuerCommonName,
             },
-            // Issued to
             issuedTo: {
-              countryName: 'GR', // Subject-C: ISO 3166 code specifying the country where the Authenticator vendor is incorporated
-              organizationName: 'UNIPI SSL', // Subject-O: Legal name of the Authenticator vendor
-              organizationalUnitName: 'Authenticator Attestation', // Subject-OU: Literal string "Authenticator Attestation"
-              commonName: 'UNIPI FIDO2 Virtual Authenticator', // Subject-CN: A string of the vendor’s choosing
+              countryName: certParams.subjectCountryName,
+              organizationName: certParams.subjectOrganizationName,
+              organizationalUnitName: certParams.subjectOrganizationalUnitName,
+              commonName: certParams.subjectCommonName,
             },
-
-            // AAGUID
             aaguid: this._getAAGUID(),
           },
           this.public_key,
           caPrivateKey,
         )
 
-        // Add certificate on responce
         attestation_object.attStmt.x5c = [cert]
       }
     }
@@ -797,7 +831,10 @@ window.AuthnDevice = (function (localURL) {
 
     // largeBlob
     if (extensions.largeBlob) {
-      if (extensions.largeBlob.support === 'required' || extensions.largeBlob.support === 'preferred') {
+      if (
+        extensions.largeBlob.support === 'required' ||
+        extensions.largeBlob.support === 'preferred'
+      ) {
         extensionResults.largeBlob = { supported: true }
       }
     }
@@ -1661,7 +1698,7 @@ window.AuthnDevice = (function (localURL) {
       let tbs = this.objectToDER([
         // Version
         { tag: 0xa0, val: 0x02 },
-        info.indentifier, // Indentifier
+        info.identifier, // Identifier
 
         //['OBJECT-IDENTIFIER{1.2.840.113549.1.1.11}'], // sha256WithRSAEncryption
         ['OBJECT-IDENTIFIER{1.2.840.10045.4.3.2}'], // ecdsaWithSHA256
