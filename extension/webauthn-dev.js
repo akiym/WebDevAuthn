@@ -544,7 +544,11 @@ window.WebDevAuthn =
     let _neutralizeNativeProperties = function (patchedProto, nativeProto) {
       let proto = nativeProto
       while (proto && proto !== Object.prototype) {
-        for (const name of Object.getOwnPropertyNames(proto)) {
+        let keys = [].concat(
+          Object.getOwnPropertyNames(proto),
+          Object.getOwnPropertySymbols(proto),
+        )
+        for (const name of keys) {
           if (name === 'constructor') continue
           if (patchedProto.hasOwnProperty(name)) continue
           const desc = Object.getOwnPropertyDescriptor(proto, name)
@@ -774,9 +778,13 @@ window.WebDevAuthn =
           this.rawId = obj.rawId
           this.response =
             obj.response && obj.response.authenticatorData
-              ? new (VirtualAuthenticatorAssertionResponse())(obj.response)
+              ? new (VirtualAuthenticatorAssertionResponse())(
+                  Object.assign({}, obj.response, { patch: obj.patch }),
+                )
               : obj.response && obj.response.attestationObject
-                ? new (VirtualAuthenticatorAttestationResponse())(obj.response)
+                ? new (VirtualAuthenticatorAttestationResponse())(
+                    Object.assign({}, obj.response, { patch: obj.patch }),
+                  )
                 : null
           // Save extensions
           this[priv] = {}
