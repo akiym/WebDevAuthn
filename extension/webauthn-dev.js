@@ -538,6 +538,40 @@ window.WebDevAuthn =
       },
     }
 
+    // Neutralize native properties on the prototype chain to prevent
+    // "Illegal invocation" errors caused by native getters/methods
+    // that require internal slots the virtual object does not have.
+    let _neutralizeNativeProperties = function (patchedProto, nativeProto) {
+      let proto = nativeProto
+      while (proto && proto !== Object.prototype) {
+        for (const name of Object.getOwnPropertyNames(proto)) {
+          if (name === 'constructor') continue
+          if (patchedProto.hasOwnProperty(name)) continue
+          const desc = Object.getOwnPropertyDescriptor(proto, name)
+          if (desc && (desc.get || desc.set)) {
+            Object.defineProperty(patchedProto, name, {
+              value: undefined,
+              writable: true,
+              configurable: true,
+              enumerable: false,
+            })
+          } else if (
+            desc &&
+            typeof desc.value === 'function' &&
+            Function.prototype.toString.call(desc.value).includes('[native code]')
+          ) {
+            Object.defineProperty(patchedProto, name, {
+              value: function () {},
+              writable: true,
+              configurable: true,
+              enumerable: false,
+            })
+          }
+        }
+        proto = Object.getPrototypeOf(proto)
+      }
+    }
+
     // Virtual AuthenticatorAssertionResponse
     // Based on: https://developer.mozilla.org/en-US/docs/Web/API/AuthenticatorAssertionResponse
     let VirtualAuthenticatorAssertionResponse = function () {
@@ -552,11 +586,14 @@ window.WebDevAuthn =
           this.userHandle = obj.userHandle
 
           // Patch object ancestors to be instance of AuthenticatorAssertionResponse
-          if (obj.patch !== false)
-            Object.setPrototypeOf(
-              Object.getPrototypeOf(this),
+          if (obj.patch !== false) {
+            let patchedProto = Object.create(
               cWindow.AuthenticatorAssertionResponse.prototype,
+              Object.getOwnPropertyDescriptors(Object.getPrototypeOf(this)),
             )
+            _neutralizeNativeProperties(patchedProto, cWindow.AuthenticatorAssertionResponse.prototype)
+            Object.setPrototypeOf(this, patchedProto)
+          }
         }
 
         // Expose that this is virtual
@@ -657,11 +694,14 @@ window.WebDevAuthn =
           this.attestationObject = obj.attestationObject
 
           // Patch object ancestors to be instance of AuthenticatorAttestationResponse
-          if (obj.patch !== false)
-            Object.setPrototypeOf(
-              Object.getPrototypeOf(this),
+          if (obj.patch !== false) {
+            let patchedProto = Object.create(
               cWindow.AuthenticatorAttestationResponse.prototype,
+              Object.getOwnPropertyDescriptors(Object.getPrototypeOf(this)),
             )
+            _neutralizeNativeProperties(patchedProto, cWindow.AuthenticatorAttestationResponse.prototype)
+            Object.setPrototypeOf(this, patchedProto)
+          }
         }
 
         getAuthenticatorData() {
@@ -746,11 +786,14 @@ window.WebDevAuthn =
               : obj.getClientExtensionResults || {}
 
           // Patch object ancestors to be instance of PublicKeyCredential
-          if (obj.patch !== false)
-            Object.setPrototypeOf(
-              Object.getPrototypeOf(this),
+          if (obj.patch !== false) {
+            let patchedProto = Object.create(
               cWindow.PublicKeyCredential.prototype,
+              Object.getOwnPropertyDescriptors(Object.getPrototypeOf(this)),
             )
+            _neutralizeNativeProperties(patchedProto, cWindow.PublicKeyCredential.prototype)
+            Object.setPrototypeOf(this, patchedProto)
+          }
         }
 
         // Extensions not yet implemented
