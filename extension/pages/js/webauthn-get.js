@@ -1146,6 +1146,42 @@ window.authnGet.initCredentials()
       if (toggle.checked) window.VirtualAuthn.doTesting(id, input.value)
     })
   })('userHandle')
+
+  ;(function (id) {
+    let toggle = document.getElementById('testing-' + id + '-checkbox')
+    let select = document.getElementById('testing-' + id + '-value')
+    function populateSelect() {
+      select.innerHTML = ''
+      let storage = JSON.parse(window.localStorage.getItem('VirtualAuthn-storage') || '[]')
+      if (storage.length === 0) {
+        let opt = document.createElement('option')
+        opt.value = ''
+        opt.textContent = '(no stored credentials)'
+        opt.disabled = true
+        select.appendChild(opt)
+        return
+      }
+      for (let i = 0; i < storage.length; i++) {
+        let opt = document.createElement('option')
+        opt.value = storage[i].keyid
+        let keyid = storage[i].keyid
+        opt.textContent = storage[i].host + ' / ' + keyid.substring(0, 8) + '...' + keyid.substring(keyid.length - 8)
+        select.appendChild(opt)
+      }
+    }
+    toggle.addEventListener('change', function () {
+      select.disabled = !toggle.checked
+      if (toggle.checked) {
+        populateSelect()
+        window.VirtualAuthn.doTesting(id, select.value || true)
+      } else {
+        window.VirtualAuthn.doTesting(id, false)
+      }
+    })
+    select.addEventListener('change', function () {
+      if (toggle.checked) window.VirtualAuthn.doTesting(id, select.value || true)
+    })
+  })('ignoreAllowCredentials')
 })()
 
 // Handle errors

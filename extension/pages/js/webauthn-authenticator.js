@@ -54,6 +54,7 @@ window.AuthnDevice = (function (localURL) {
       algorithm: false,
       forceResidentKey: false,
       aaguid: false,
+      ignoreAllowCredentials: false,
     }
 
     // Default salt (master key is loaded on demand from extension storage)
@@ -524,6 +525,31 @@ window.AuthnDevice = (function (localURL) {
   }
 
   AuthnDevice.prototype._findCredential = async function (rpid, allowCredentials) {
+    // Testing: Ignore allowCredentials and use a specific or any stored resident key
+    if (this.testing.ignoreAllowCredentials) {
+      let keyid = typeof this.testing.ignoreAllowCredentials === 'string'
+        ? this.testing.ignoreAllowCredentials
+        : null
+      if (keyid) {
+        // Search storage ignoring RP ID to allow cross-RP credential usage
+        if (this.handleStorage) this.storage = this.handleStorage()
+        for (let i = this.storage.length - 1; i >= 0; i--) {
+          if (this.storage[i].keyid === keyid) {
+            let credentials = this.storage[i]
+            let wrappedKey = window.authnTools.base64urlToUint8Array(credentials.wrappedKey)
+            this.masterkeysalt = window.authnTools.base64urlToUint8Array(credentials.masterKeySalt)
+            let r = await this._cred_init(rpid, null, wrappedKey)
+            if (r) {
+              this.credential_id = new Uint8Array(await window.crypto.subtle.digest('SHA-256', wrappedKey))
+              return true
+            }
+          }
+        }
+        return false
+      }
+      if (await this._cred_init_with_ResidentKey(rpid)) return true
+      return false
+    }
     if (allowCredentials && allowCredentials.length > 0) {
       for (let i = allowCredentials.length - 1; i >= 0; i--) {
         if (
