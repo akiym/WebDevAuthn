@@ -152,6 +152,9 @@ window.authnCreate = {
   createCredentials: function () {
     // More info in console
     console.log('[Create Credentials > Options]', this.options)
+    // Clear previous state
+    this.credential = null
+    this.lastError = null
     // Clear response
     this.responseTextContent('Creating Credentials ...')
     // Get user id
@@ -200,10 +203,7 @@ window.authnCreate = {
         if (typeof e.stack === 'string') {
           window.jsNotify.danger(e.stack.replace(/\n/g, '<br>'))
         }
-        if (this.crossSiteErrorReponse) {
-          this.crossSiteErrorReponse(e)
-          this.crossSiteErrorReponse = null
-        }
+        this.lastError = e
       })
   },
 
@@ -2550,12 +2550,38 @@ window.addEventListener(
 ;(function () {
   // Show send result button
   let button = document.getElementById('credential-creation-send')
+  let cancelButton = document.getElementById('credential-creation-cancel')
   button.addEventListener(
     'click',
     () => {
-      if (!window.authnCreate.credential) return
-      if (window.authnCreate.crossSiteReponse) window.authnCreate.crossSiteReponse()
+      if (window.authnCreate.credential) {
+        if (window.authnCreate.crossSiteReponse) window.authnCreate.crossSiteReponse()
+      } else if (window.authnCreate.lastError) {
+        if (window.authnCreate.crossSiteErrorReponse) {
+          window.authnCreate.crossSiteErrorReponse(window.authnCreate.lastError)
+          window.authnCreate.crossSiteErrorReponse = null
+        }
+        window.authnCreate.lastError = null
+      } else {
+        return
+      }
       button.setAttribute('disabled', 'disabled')
+      cancelButton.setAttribute('disabled', 'disabled')
+    },
+    false,
+  )
+  cancelButton.addEventListener(
+    'click',
+    () => {
+      if (window.authnCreate.crossSiteErrorReponse) {
+        window.authnCreate.crossSiteErrorReponse(
+          new DOMException('The operation either timed out or was not allowed.', 'NotAllowedError'),
+        )
+        window.authnCreate.crossSiteErrorReponse = null
+      }
+      window.authnCreate.lastError = null
+      button.setAttribute('disabled', 'disabled')
+      cancelButton.setAttribute('disabled', 'disabled')
     },
     false,
   )
