@@ -116,6 +116,9 @@ window.authnGet = {
   getCredentials: function () {
     // More info in console
     console.log('[Get Credentials > Options]', this.options)
+    // Clear previous state
+    this.credential = null
+    this.lastError = null
     // Clear response
     this.responseTextContent('Getting Credentials ...')
     // Start WebAuthn credentials get
@@ -146,10 +149,7 @@ window.authnGet = {
         if (typeof e.stack === 'string') {
           window.jsNotify.danger(e.stack.replace(/\n/g, '<br>'))
         }
-        if (this.crossSiteErrorReponse) {
-          this.crossSiteErrorReponse(e)
-          this.crossSiteErrorReponse = null
-        }
+        this.lastError = e
       })
   },
 
@@ -1209,8 +1209,17 @@ window.addEventListener(
   button.addEventListener(
     'click',
     () => {
-      if (!window.authnGet.credential) return
-      if (window.authnGet.crossSiteReponse) window.authnGet.crossSiteReponse()
+      if (window.authnGet.credential) {
+        if (window.authnGet.crossSiteReponse) window.authnGet.crossSiteReponse()
+      } else if (window.authnGet.lastError) {
+        if (window.authnGet.crossSiteErrorReponse) {
+          window.authnGet.crossSiteErrorReponse(window.authnGet.lastError)
+          window.authnGet.crossSiteErrorReponse = null
+        }
+        window.authnGet.lastError = null
+      } else {
+        return
+      }
       button.setAttribute('disabled', 'disabled')
     },
     false,
