@@ -457,14 +457,17 @@ window.AuthnDevice = (function (localURL) {
     key_id = null,
   ) {
     if (this.handleStorage) this.storage = this.handleStorage()
+    // Convert key_id to base64url string for comparison with storage keyid
+    let key_id_str =
+      key_id === null ? null : typeof key_id === 'string' ? key_id : window.authnTools.auto(key_id)
     // Search storage
-    //console.log('Storage', this.storage);
     for (let i = this.storage.length - 1; i >= 0; i--) {
-      //console.log('Checking', this.storage[i].host, rp_id, this.storage[i].keyid, key_id);
       // If key found in storage
-      if (this.storage[i].host === rp_id && (key_id === null || this.storage[i].keyid === key_id)) {
+      if (
+        this.storage[i].host === rp_id &&
+        (key_id_str === null || this.storage[i].keyid === key_id_str)
+      ) {
         let credentials = this.storage[i]
-        //console.log('Webpage match', credentials);
         let wrappedKey = window.authnTools.base64urlToUint8Array(credentials.wrappedKey)
         // Restore key salt
         this.masterkeysalt = window.authnTools.base64urlToUint8Array(credentials.masterKeySalt)
@@ -473,10 +476,12 @@ window.AuthnDevice = (function (localURL) {
         // Resident keys use a different credential id than the original credential id
         if (r) {
           if (key_id === null) {
-            //key_id = window.authnTools.base64urlToUint8Array(credentials.keyid);
-            key_id = new Uint8Array(await window.crypto.subtle.digest('SHA-256', wrappedKey))
+            this.credential_id = new Uint8Array(
+              await window.crypto.subtle.digest('SHA-256', wrappedKey),
+            )
+          } else {
+            this.credential_id = window.authnTools.base64urlToUint8Array(key_id_str)
           }
-          this.credential_id = key_id
         }
         return r
       }
@@ -738,6 +743,11 @@ window.AuthnDevice = (function (localURL) {
 
     // Testing: Override credential ID with an arbitrary value
     if (this.testing.credentialId) {
+      if (!requestResidentKey) await this._saveResidentKey(rpid)
+      // Update storage entry's keyid to match the custom credential ID
+      if (this.handleStorage) this.storage = this.handleStorage()
+      this.storage[this.storage.length - 1].keyid = this.testing.credentialId
+      if (this.handleStorage) this.handleStorage(this.storage)
       this.credential_id = window.authnTools.base64urlToUint8Array(this.testing.credentialId)
     }
 
@@ -973,6 +983,11 @@ window.AuthnDevice = (function (localURL) {
 
     // Get credentials
     let credential_id = new Uint8Array(this.credential_id)
+
+    // Testing: Override credential ID with an arbitrary value
+    if (this.testing.credentialId) {
+      credential_id = window.authnTools.base64urlToUint8Array(this.testing.credentialId)
+    }
 
     // Generate Authenticator Data
     let rp_id_hash = new Uint8Array(

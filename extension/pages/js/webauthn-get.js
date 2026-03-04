@@ -1093,6 +1093,20 @@ window.authnGet.initCredentials()
     let toggle = document.getElementById('testing-' + id + '-checkbox')
     let input = document.getElementById('testing-' + id + '-value')
     toggle.addEventListener('change', function () {
+      window.VirtualAuthn.doTesting(id, toggle.checked ? input.value : false)
+    })
+    input.addEventListener('change', function () {
+      if (toggle.checked) window.VirtualAuthn.doTesting(id, input.value)
+    })
+    input.addEventListener('keyup', function () {
+      if (toggle.checked) window.VirtualAuthn.doTesting(id, input.value)
+    })
+  })('credentialId')
+
+  ;(function (id) {
+    let toggle = document.getElementById('testing-' + id + '-checkbox')
+    let input = document.getElementById('testing-' + id + '-value')
+    toggle.addEventListener('change', function () {
       window.VirtualAuthn.doTesting(id, toggle.checked ? parseInt(input.value, 10) : false)
     })
     input.addEventListener('change', function () {
