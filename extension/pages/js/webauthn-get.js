@@ -1206,6 +1206,7 @@ window.addEventListener(
 ;(function () {
   // Show send result button
   let button = document.getElementById('credential-get-send')
+  let cancelButton = document.getElementById('credential-get-cancel')
   button.addEventListener(
     'click',
     () => {
@@ -1221,6 +1222,22 @@ window.addEventListener(
         return
       }
       button.setAttribute('disabled', 'disabled')
+      cancelButton.setAttribute('disabled', 'disabled')
+    },
+    false,
+  )
+  cancelButton.addEventListener(
+    'click',
+    () => {
+      if (window.authnGet.crossSiteErrorReponse) {
+        window.authnGet.crossSiteErrorReponse(
+          new DOMException('The operation either timed out or was not allowed.', 'NotAllowedError'),
+        )
+        window.authnGet.crossSiteErrorReponse = null
+      }
+      window.authnGet.lastError = null
+      button.setAttribute('disabled', 'disabled')
+      cancelButton.setAttribute('disabled', 'disabled')
     },
     false,
   )
