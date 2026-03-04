@@ -878,6 +878,11 @@ window.authnGet = {
     }
 
     var info
+    let credentialIdHex = Array.from(
+      window.authnTools.base64urlToUint8Array(window.authnTools.auto($credential.rawId)),
+    )
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(':')
 
     // Render raw response
     credential = window._.cloneDeep($credential)
@@ -886,10 +891,14 @@ window.authnGet = {
     console.log('[Render Credential Raw]', credential)
     var code =
       '' +
-      JSON.stringify(credential, null, 4).replace(
-        new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'),
-        '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')',
-      )
+      JSON.stringify(credential, null, 4)
+        .replace(
+          new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'),
+          '$1$2$3 // ArrayBuffer(' +
+            window.authnTools.auto(credential.rawId).length +
+            ') ' +
+            credentialIdHex,
+        )
     code = this.swapIdentifiedBuffers(code, info)
     rawWrapper.textContent = code
 
@@ -914,7 +923,10 @@ window.authnGet = {
       JSON.stringify(credential, null, 4)
         .replace(
           new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'),
-          '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')',
+          '$1$2$3 // ArrayBuffer(' +
+            window.authnTools.auto(credential.rawId).length +
+            ') ' +
+            credentialIdHex,
         )
         .replace(/"flags": "([01]+)"/, '"flags": 0x$1')
     code = this.swapIdentifiedBuffers(code, info)

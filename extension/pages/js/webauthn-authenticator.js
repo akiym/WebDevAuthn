@@ -55,6 +55,7 @@ window.AuthnDevice = (function (localURL) {
       forceResidentKey: false,
       aaguid: false,
       ignoreAllowCredentials: false,
+      credentialId: false,
     }
 
     // Default salt (master key is loaded on demand from extension storage)
@@ -734,6 +735,11 @@ window.AuthnDevice = (function (localURL) {
     )
     // Save resident key
     if (requestResidentKey) await this._saveResidentKey(rpid)
+
+    // Testing: Override credential ID with an arbitrary value
+    if (this.testing.credentialId) {
+      this.credential_id = window.authnTools.base64urlToUint8Array(this.testing.credentialId)
+    }
 
     // Get credential id
     let credential_id = new Uint8Array(this.credential_id)

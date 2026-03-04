@@ -2110,6 +2110,12 @@ window.authnCreate = {
       }
     }
 
+    let credentialIdHex = Array.from(
+      window.authnTools.base64urlToUint8Array(window.authnTools.auto($credential.rawId)),
+    )
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(':')
+
     // Render raw response
     credential = window._.cloneDeep($credential)
     credential.rawId = window.authnTools.auto(credential.rawId)
@@ -2123,7 +2129,10 @@ window.authnCreate = {
       JSON.stringify(credential, null, 4)
         .replace(
           new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'),
-          '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')',
+          '$1$2$3 // ArrayBuffer(' +
+            window.authnTools.auto(credential.rawId).length +
+            ') ' +
+            credentialIdHex,
         )
         .replace(
           new RegExp(
@@ -2162,7 +2171,10 @@ window.authnCreate = {
       JSON.stringify(credential, null, 4)
         .replace(
           new RegExp('("rawId":\\s*)"(' + credential.rawId + ')"(,?)'),
-          '$1$2$3 // ArrayBuffer(' + window.authnTools.auto(credential.rawId).length + ')',
+          '$1$2$3 // ArrayBuffer(' +
+            window.authnTools.auto(credential.rawId).length +
+            ') ' +
+            credentialIdHex,
         )
         .replace(
           /"authData": {/,
@@ -2500,6 +2512,20 @@ window.authnCreate.initIanaAlgorithms()
       window.VirtualAuthn.doTesting(id, toggle.checked ? true : false)
     })
   })('forceResidentKey')
+
+  ;(function (id) {
+    let toggle = document.getElementById('testing-' + id + '-checkbox')
+    let input = document.getElementById('testing-' + id + '-value')
+    toggle.addEventListener('change', function () {
+      window.VirtualAuthn.doTesting(id, toggle.checked ? input.value : false)
+    })
+    input.addEventListener('change', function () {
+      if (toggle.checked) window.VirtualAuthn.doTesting(id, input.value)
+    })
+    input.addEventListener('keyup', function () {
+      if (toggle.checked) window.VirtualAuthn.doTesting(id, input.value)
+    })
+  })('credentialId')
 })()
 
 // Handle errors
